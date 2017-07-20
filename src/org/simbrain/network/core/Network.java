@@ -27,7 +27,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.simbrain.network.connections.ConnectNeurons;
 import org.simbrain.network.connections.Sparse;
@@ -159,6 +158,15 @@ public class Network {
      */
     private volatile boolean fireUpdates = true;
 
+    /**
+     * An internal id giving networks unique numbers within the same simbrain
+     * session.
+     */
+    private static int current_id = 0;
+
+    /** An optional name for the network that defaults to "Network[current_id]".*/
+    private String name ="";
+
     /** Static initializer */
     {
         try {
@@ -173,6 +181,8 @@ public class Network {
      * Used to create an instance of network (Default constructor).
      */
     public Network() {
+    	name = "Network"+current_id;
+    	current_id++;
         updateManager = new NetworkUpdateManager(this);
         prioritySortedNeuronList = new ArrayList<Neuron>();
     }
@@ -420,6 +430,8 @@ public class Network {
         return Collections.unmodifiableList(groupList);
     }
 
+
+
     /**
      * Returns a list of all neuron groups.
      *
@@ -591,7 +603,7 @@ public class Network {
      * neurons dialog does things (it defaults to adding neurons, but if a user
      * wants they can be put in a group). This is not part of the standard neuron
      * group creation process.
-     * 
+     *
      * TODO: Confusing; if possible refactor so that this method is not needed.
      *
      * @param list
@@ -890,6 +902,33 @@ public class Network {
     }
 
     /**
+     * Create a "flat" list of groups, which only includes sub-groups of subnetworks
+     * and unbound groups.
+     *
+     * @return the flat list
+     */
+    public List<Group> getFlatGroupListNoSubnets() {
+    	List<Group> groups = new ArrayList<Group>();
+    	for (Group g : groupList) {
+    		if (g instanceof Subnetwork) {
+    			List<NeuronGroup> ng = ((Subnetwork)g).getNeuronGroupList();
+    			List<SynapseGroup> sg = ((Subnetwork)g).getSynapseGroupList();
+    			if (!ng.isEmpty()) {
+    				groups.addAll(ng);
+    			}
+    			if (!sg.isEmpty()) {
+    				groups.addAll(sg);
+    			}
+    		} else {
+    			if (!g.isEmpty()) {
+    				groups.add(g);
+    			}
+    		}
+    	}
+    	return groups;
+    }
+
+    /**
      * Returns the precision of the current time step.
      *
      * @return the precision of the current time step.
@@ -1002,7 +1041,7 @@ public class Network {
     private Object readResolve() {
 
     	fireUpdates = true;
-    	
+
         // Initialize listener lists
         networkListeners = new ArrayList<NetworkListener>();
         neuronListeners = new ArrayList<NeuronListener>();
@@ -1069,7 +1108,7 @@ public class Network {
 
     /**
      * Returns the current number of iterations.
-     * 
+     *
      * @return the number of update iterations which have been run since the
      *         network was created.
      */
@@ -1475,7 +1514,7 @@ public class Network {
     }
 
     /**
-     * 
+     *
      * @param group reference to the group whose parameters are being changed
      * @param changeDescription A change of description for the group
      */
@@ -1511,7 +1550,7 @@ public class Network {
             groupListeners.get(i).groupUpdated(groups);
         }
     }
-    
+
     @Override
     public String toString() {
 
@@ -1860,6 +1899,14 @@ public class Network {
 
     public void setFireUpdates(boolean fireUpdates) {
         this.fireUpdates = fireUpdates;
+    }
+
+    public String getName() {
+    	return name;
+    }
+
+    public void setName(String name) {
+    	this.name = name;
     }
 
 }
